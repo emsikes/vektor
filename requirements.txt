@@ -1,0 +1,29 @@
+# requirements.txt
+
+# Core ML
+torch==2.3.1                    # PyTorch — CUDA 12.1 build will be installed separately
+transformers==4.44.0            # HuggingFace Transformers — DeBERTa lives here
+datasets==2.20.0                # HF Datasets — unified data loading/processing API
+accelerate==0.33.0              # Trainer hardware abstraction (GPU/CPU/multi-GPU)
+evaluate==0.4.2                 # HF Evaluate — metrics like F1, precision, recall
+
+# Data processing
+pandas==2.2.2                   # Tabular wrangling during EDA and merging
+numpy==1.26.4                   # Underlying array ops
+scikit-learn==1.5.1             # train_test_split, classification_report, label encoding
+tqdm==4.66.4                    # Progress bars for dataset processing loops
+
+# Synthetic data generation
+openai==1.40.0                  # For synthetic generation via GPT-4o
+anthropic==0.34.0               # For Claude-based synthetic generation
+
+# Experiment tracking
+wandb==0.17.5                   # W&B for training run logging (free tier is fine)
+
+# Utilities
+python-dotenv==1.0.1            # Load API keys from .env
+huggingface_hub==0.24.5        # Push model/dataset to HF Hub
+
+# Dev / notebook
+ipykernel==6.29.5               # Jupyter kernel for notebooks
+jupyter==1.0.0

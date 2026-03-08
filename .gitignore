@@ -1,0 +1,77 @@
+# ── Virtual Environment ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+# Raw downloaded datasets — large files, always re-downloadable via loaders.py
+data/raw/
+
+# Processed intermediate files
+data/processed/
+
+# Train/val/test splits — regenerate via preprocessing.py
+data/splits/
+
+# Any stray large data files
+*.csv
+*.parquet
+*.arrow
+*.jsonl
+*.json.gz
+
+# Keep split JSON files if explicitly added (override above with git add -f)
+# To commit a specific file: git add -f data/splits/train.json
+
+# ── HuggingFace Cache ─────────────────────────────────────────────────────────
+# HF datasets and models cache to disk — never commit these
+~/.cache/huggingface/
+.cache/
+
+# ── Model Outputs ─────────────────────────────────────────────────────────────
+outputs/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.onnx
+
+# ── Experiment Tracking ───────────────────────────────────────────────────────
+wandb/
+mlruns/
+.neptune/
+
+# ── Environment & Secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Notebooks ─────────────────────────────────────────────────────────────────
+# Keep .ipynb files but ignore checkpoints
+notebooks/.ipynb_checkpoints/
+.ipynb_checkpoints/
+
+# ── IDE & OS ──────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
