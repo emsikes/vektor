@@ -1,0 +1,26 @@
+model:
+  name: "answerdotai/ModernBERT-large"
+  max_length: 512          # Phase 2 baseline — bump to 2048 in Phase 3 for long-context injection
+
+training:
+  output_dir: "outputs/vektor-guard-v1"
+  num_train_epochs: 5
+  per_device_train_batch_size: 32    # target for A100 — reduce to 16 if OOM
+  per_device_eval_batch_size: 64     # eval doesn't need gradients, can use larger batch
+  learning_rate: 2e-5                # standard starting point for encoder fine-tuning
+  weight_decay: 0.01                 # L2 regularization to reduce overfitting
+  warmup_steps: 500                  # 10% of total steps for LR warmup
+  bf16: true                         # bf16 mixed precision — optimal for A100/H100
+  gradient_checkpointing: true       # trade compute for memory — essential for large model
+  eval_strategy: "epoch"       # eval after every epoch
+  save_strategy: "epoch"             # save checkpoint after every epoch
+  load_best_model_at_end: true       # restore best checkpoint when training ends
+  metric_for_best_model: "recall"    # optimize for recall — minimize false negatives
+  greater_is_better: true
+  logging_steps: 50                  # log training loss every 50 steps
+  report_to: "wandb"                 # experiment tracking via Weights & Biases
+
+targets:
+  false_negative_rate: 0.02          # miss no more than 2% of injection attacks
+  recall: 0.98                       # catch at least 98% of injection attacks
+  f1: 0.95                           # maintain precision/recall balance

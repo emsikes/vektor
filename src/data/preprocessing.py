@@ -7,7 +7,7 @@ def deduplicate(examples: list[dict]) -> list[dict]:
     seen = set()
     unique = []
     for ex in examples:
-        key = ex["text"].lower().strip()
+        key = ex["text"].lower().strip()    # normalize before hashing
         if key not in seen:
             seen.add(key)
             unique.append(ex)
@@ -33,9 +33,15 @@ def class_balance_report(examples: list[dict]) -> None:
         
 def split_dataset(examples: list[dict], val_size: float = 0.1, test_size: float = 0.1, seed: int = 42) -> tuple:
     labels = [ex["label"] for ex in examples]
+
+    # Carve out test, then the remainder train/val
     train_val, test = train_test_split(examples, test_size=test_size, stratify=labels, random_state=seed)
+
     tv_labels = [ex["label"] for ex in train_val]
+
+    # Adjust val_size relative to the remaining data once test is removed
     train, val = train_test_split(train_val, test_size=val_size / (1 - test_size), stratify=tv_labels, random_state=seed)
+
     return train, val, test
 
 def save_splits(train: list[dict], val: list[dict], test: list[dict], output_dir: str = "data/splits") -> None:
@@ -44,5 +50,5 @@ def save_splits(train: list[dict], val: list[dict], test: list[dict], output_dir
     for name, split in [("train", train), ("val", val), ("test", test)]:
         path = out / f"{name}.json"
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(split, f, indent=2, ensure_ascii=False)
+            json.dump(split, f, indent=2, ensure_ascii=False)   # Perserve non-ascii characters in prompts
         print(f"Saved {name}: {len(split)} examples in {path}")
