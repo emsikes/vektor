@@ -4,9 +4,8 @@
 torch==2.4.0                    # PyTorch — CUDA 12.1 build will be installed separately
 transformers==5.3.0             # HuggingFace Transformers — DeBERTa lives here
 datasets==2.20.0                # HF Datasets — unified data loading/processing API
-accelerate==0.33.0              # Trainer hardware abstraction (GPU/CPU/multi-GPU)
+accelerate>=1.1.0              # Trainer hardware abstraction (GPU/CPU/multi-GPU)
 evaluate==0.4.2                 # HF Evaluate — metrics like F1, precision, recall
-accelerate>=1.1.0
 
 # Data processing
 pandas==2.2.2                   # Tabular wrangling during EDA and merging
