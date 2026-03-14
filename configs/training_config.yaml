@@ -19,6 +19,7 @@ training:
   greater_is_better: true
   logging_steps: 50                  # log training loss every 50 steps
   report_to: "wandb"                 # experiment tracking via Weights & Biases
+  wandb_project: "vektor-guard"      # Wandb project for experiement tracking 
 
 targets:
   false_negative_rate: 0.02          # miss no more than 2% of injection attacks
