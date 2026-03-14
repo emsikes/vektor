@@ -45,11 +45,9 @@ def check_targets(metrics: dict, fnr_target: float = 0.02, recall_target: float 
     # Report whether each key metric met the target for this phase
     print("\n--- Target Check ---")
     checks = [
-        """ 
-        fnr and recall mirror one another but fnr is more intuitive in a security context: fnr = 1 - recall
-        f1 prevents high recall via over-flagging and forces precision to stay high
-        """
-        ("false_negative_rate", metrics["false_negaitve_rate"], fnr_target, "<="),
+        # fnr and recall mirror one another but fnr is more intuitive in a security context: fnr = 1 - recall
+        # f1 prevents high recall via over-flagging and forces precision to stay high
+        ("false_negative_rate", metrics["false_negative_rate"], fnr_target, "<="),
         ("recall",              metrics["recall"],              recall_target, ">="),   
         ("f1",                  metrics["f1"],                  f1_target, ">="),       
     ]

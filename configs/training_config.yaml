@@ -7,7 +7,7 @@ training:
   num_train_epochs: 5
   per_device_train_batch_size: 32    # target for A100 — reduce to 16 if OOM
   per_device_eval_batch_size: 64     # eval doesn't need gradients, can use larger batch
-  learning_rate: 2e-5                # standard starting point for encoder fine-tuning
+  learning_rate: 0.00002             # standard starting point for encoder fine-tuning
   weight_decay: 0.01                 # L2 regularization to reduce overfitting
   warmup_steps: 500                  # 10% of total steps for LR warmup
   bf16: true                         # bf16 mixed precision — optimal for A100/H100
