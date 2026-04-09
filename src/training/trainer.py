@@ -1,5 +1,6 @@
 import yaml
 from pathlib import Path
+import os
 from transformers import (
     AutoModelForSequenceClassification,
     TrainingArguments,
@@ -15,10 +16,12 @@ def load_config(config_path: str = "configs/training_config.yaml") -> dict:
         # Load all hyperparameters from yaml dynamically - no hardcoded values
         return yaml.safe_load(f)
     
-def load_model(model_name: str):
+def load_model(model_name: str, num_labels: int, id2label: dict, label2id: dict):
     return AutoModelForSequenceClassification.from_pretrained(
         model_name,
-        num_labels=2,                       # Binary classification - clean (0) vs injection (1)
+        num_labels=num_labels,             # 5 class classification 
+        id2label=id2label,                 # maps integer predictions to label names
+        label2id=label2id,                 # maps label names to integers for training
         ignore_mismatched_sizes=True       # Classification head randomly initialized - expected mismath
     )
 
@@ -26,6 +29,8 @@ def build_training_args(config: dict) -> TrainingArguments:
     # Map each key from configs/training_config.yaml
 
     cfg = config["training"]
+    os.environ["WANDB_PROJECT"] = cfg["wandb_project"]
+
     return TrainingArguments(
         output_dir=cfg["output_dir"],
         num_train_epochs=cfg["num_train_epochs"],
@@ -45,7 +50,7 @@ def build_training_args(config: dict) -> TrainingArguments:
         report_to=cfg["report_to"],
         # always save the best checkpoint by recall, not just the most recent
         save_total_limit=2,
-        run_name="vektor-guard-v1-phase2"
+        run_name="vektor-guard-v2-phase3"
     )
 
 def build_trainer(config_path: str = "configs/training_config.yaml") -> Trainer:
@@ -53,9 +58,14 @@ def build_trainer(config_path: str = "configs/training_config.yaml") -> Trainer:
     model_name = config["model"]["name"]
     max_length = config["model"]["max_length"]
 
+    # pull label mappings from config - single source of truth
+    num_labels = config["model"]["num_labels"]
+    id2label = {int(k): v for k,v in config["model"]["id2label"].items()}
+    label2id = config["model"]["label2id"]
+
     # build tokenizer and model from config
     tokenizer = build_tokenizer(model_name)
-    model = load_model(model_name)
+    model = load_model(model_name, num_labels, id2label, label2id)
 
     # load and tokenize all three splits
     train_dataset = tokenize_split(load_split("train"), tokenizer, max_length)

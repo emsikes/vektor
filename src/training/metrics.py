@@ -2,60 +2,95 @@ import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 
+LABEL_NAMES = [
+    "clean",
+    "instruction_override",
+    "indirect_injection",
+    "jailbreak",
+    "tool_call_hijacking"
+]
+
+
 def compute_metrics(eval_pred) -> dict:
     logits, labels = eval_pred
 
     # Take the argmax across class dimensions to get predicted class indices
     predictions = np.argmax(logits, axis=-1)
 
+    # Macro average — computes F1 per class then averages equally across all classes
+    # This prevents majority classes from dominating the score
     precision, recall, f1, _ = precision_recall_fscore_support(
         labels, predictions,
-        average="binary",       # Binary task for now, will convert to "macro" in later phase
-        pos_label=1             # Injection is the positive class
+        average="macro",
+        zero_division=0
     )
 
     accuracy = accuracy_score(labels, predictions)
 
-    """ 
-    What we attempt to measure here:
+    # Per-class F1 — identifies which attack categories the model struggles with
+    _, _, per_class_f1, _ = precision_recall_fscore_support(
+        labels, predictions,
+        average=None,           # None returns per-class scores instead of averaged
+        zero_division=0
+    )
 
-    A false negative means the model saw an injection attack as a "clean" request.
-
-    'predictions == 1' - created a boolean array, True where the model predicted "clean"
-    'labels == 1' - creates a boolean array, True where the true label is "injection"
-    '&' - True only where BOTH are True, meaning predicted clean but actually an injection
-    'np.sum()..' - counts up the True values - this acount becomes our false negative count
-
-    This is the primary and crucial metric: missing an attack is worse than a false alarm
-    Target for false predictions is <=2%
     """
+    False negative rate for multi-class:
+    A false negative means a real attack was classified as "clean" (label 0).
 
-    fn = np.sum((predictions == 0) & (labels == 1))
-    fnr = fn / np.sum(labels == 1)
+    'predictions == 0' - model predicted clean
+    'labels != 0' - true label is any attack category
+    '&' - True only where both are True: predicted clean but actually an attack
+    'np.sum(labels != 0)' - total number of actual attack examples
 
-    return {
-        "accuracy": round(accuracy, 4),
-        "precision": round(precision, 4),
-        "recall": round(recall, 4),
-        "f1": round(f1, 4),
-        "false_negative_rate": round(fnr, 4)
+    This remains the primary security metric — missing any attack type is worse than a false alarm.
+    Target for Phase 3 is <=5% (relaxed from 2% — 5-class is harder than binary)
+    """
+    fn = np.sum((predictions == 0) & (labels != 0))
+    total_attacks = np.sum(labels != 0)
+    fnr = fn / total_attacks if total_attacks > 0 else 0.0
+
+    metrics = {
+        "accuracy": round(float(accuracy), 4),
+        "macro_precision": round(float(precision), 4),
+        "macro_recall": round(float(recall), 4),
+        "macro_f1": round(float(f1), 4),
+        "false_negative_rate": round(float(fnr), 4),
     }
 
-def check_targets(metrics: dict, fnr_target: float = 0.02, recall_target: float = 0.98, f1_target: float = 0.95) -> None:
+    # Add per-class F1 scores for diagnostic visibility
+    for i, label_name in enumerate(LABEL_NAMES):
+        metrics[f"f1_{label_name}"] = round(float(per_class_f1[i]), 4)
+
+    return metrics
+
+
+def check_targets(
+    metrics: dict,
+    fnr_target: float = 0.05,
+    macro_f1_target: float = 0.90,
+    per_class_f1_minimum: float = 0.80
+) -> None:
     # Report whether each key metric met the target for this phase
     print("\n--- Target Check ---")
+
     checks = [
-        # fnr and recall mirror one another but fnr is more intuitive in a security context: fnr = 1 - recall
-        # f1 prevents high recall via over-flagging and forces precision to stay high
         ("false_negative_rate", metrics["false_negative_rate"], fnr_target, "<="),
-        ("recall",              metrics["recall"],              recall_target, ">="),   
-        ("f1",                  metrics["f1"],                  f1_target, ">="),       
+        ("macro_f1", metrics["macro_f1"], macro_f1_target, ">="),
     ]
+
     for name, value, target, direction in checks:
-        if direction == "<=":
-            passed = value <= target
-        else:
-            passed = value >= target
+        passed = value <= target if direction == "<=" else value >= target
         status = "PASS" if passed else "FAIL"
         print(f" {status} {name}; {value:.4f} (target{direction} {target})")
+
+    # Per-class F1 check — flag any category falling below minimum
+    print("\n--- Per-Class F1 ---")
+    for label_name in LABEL_NAMES:
+        key = f"f1_{label_name}"
+        value = metrics.get(key, 0.0)
+        passed = value >= per_class_f1_minimum
+        status = "PASS" if passed else "FAIL"
+        print(f" {status} {label_name}; {value:.4f} (target>= {per_class_f1_minimum})")
+
     print("-----------------------------------------\n")

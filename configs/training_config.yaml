@@ -1,27 +1,40 @@
 model:
   name: "answerdotai/ModernBERT-large"
-  max_length: 512          # Phase 2 baseline — bump to 2048 in Phase 3 for long-context injection
+  max_length: 2048         # Bumped up from 512 - long-context injection detection
+  num_labels: 5            # Phase 3: 5 class multi-class (was 2 in phase 2)
+  id2label:
+    0: "clean"
+    1: "instruction_override"
+    2: "indirect_injection"
+    3: "jailbreak"
+    4: "tool_call_hijacking"
+  label2id:
+    clean: 0
+    instruction_override: 1
+    indirect_injection: 2
+    jailbreak: 3
+    tool_call_hijacking: 4
 
 training:
-  output_dir: "outputs/vektor-guard-v1"
+  output_dir: "outputs/vektor-guard-v2"
   num_train_epochs: 5
-  per_device_train_batch_size: 32    # target for A100 — reduce to 16 if OOM
-  per_device_eval_batch_size: 64     # eval doesn't need gradients, can use larger batch
+  per_device_train_batch_size: 16    # reduced from 32 - max_length 2048 uses more VRAM
+  per_device_eval_batch_size: 32     # eval doesn't need gradients, can use larger batch
   learning_rate: 0.00002             # standard starting point for encoder fine-tuning
   weight_decay: 0.01                 # L2 regularization to reduce overfitting
   warmup_steps: 500                  # 10% of total steps for LR warmup
   bf16: true                         # bf16 mixed precision — optimal for A100/H100
   gradient_checkpointing: true       # trade compute for memory — essential for large model
-  eval_strategy: "epoch"       # eval after every epoch
+  eval_strategy: "epoch"             # eval after every epoch
   save_strategy: "epoch"             # save checkpoint after every epoch
   load_best_model_at_end: true       # restore best checkpoint when training ends
-  metric_for_best_model: "recall"    # optimize for recall — minimize false negatives
+  metric_for_best_model: "macro_f1"  # changed from recall - macro F1 averages across all 5 classes
   greater_is_better: true
   logging_steps: 50                  # log training loss every 50 steps
   report_to: "wandb"                 # experiment tracking via Weights & Biases
   wandb_project: "vektor-guard"      # Wandb project for experiement tracking 
 
 targets:
+  macro_f1: 0.90                     # average F1 accross all 5 categries
   false_negative_rate: 0.02          # miss no more than 2% of injection attacks
-  recall: 0.98                       # catch at least 98% of injection attacks
-  f1: 0.95                           # maintain precision/recall balance
+  per_class_f1_minimum: 0.80         # maintain precision/recall balance

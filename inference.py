@@ -1,10 +1,16 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
+
 REPO_ID = "theinferenceloop/vektor-guard-v1"
 
 
 def load_model(repo_id: str = REPO_ID):
+    """
+    Load Vektor-Guard tokenizer and model from HuggingFace. Detects GPU or CPU automatically 
+    and returns (tokenizer, model) tuple ready for inference.
+    """
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     tokenizer = AutoTokenizer.from_pretrained(repo_id)
@@ -17,6 +23,8 @@ def load_model(repo_id: str = REPO_ID):
     return tokenizer, model
 
 def predict(text: str, tokenizer, model, device) -> dict:
+    """Run a single prompt through Vektor-Guard and return label, confidence score, and class id. Label is either INJECTION or CLEAN."""
+
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -42,6 +50,11 @@ def predict(text: str, tokenizer, model, device) -> dict:
     }
 
 def main():
+    """
+    Launch interactive CLI inference loop. Accepts prompts from stdin, 
+    prints label and confidence per prompt, and exits on 'quit'.
+    """
+
     tokenizer, model = load_model()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
