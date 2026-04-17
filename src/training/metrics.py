@@ -31,7 +31,8 @@ def compute_metrics(eval_pred) -> dict:
     _, _, per_class_f1, _ = precision_recall_fscore_support(
         labels, predictions,
         average=None,           # None returns per-class scores instead of averaged
-        zero_division=0
+        zero_division=0,
+        labels=list(range(len(LABEL_NAMES)))    # Force all 5 classes even if not seen in the batch
     )
 
     """
