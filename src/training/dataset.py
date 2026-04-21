@@ -32,6 +32,36 @@ def resolve_label(label) -> int:
         return label
     return LABEL2ID[label]
 
+def compute_class_weights(examples: list[dict]) -> list[float]:
+    """
+    Compute inverse frequency class weights for weighted sampling.
+    Rare classes get higher weights so the sampler draws them more frequently,
+    correcting for class imbalance in the merged Phase 2 + synthetic dataset.
+    Returns a weight value per example (not per class) for use with WeightedRandomSampler.
+    """
+    from collections import Counter
+
+    labels = [resolve_label(ex["label"]) for ex in examples]
+    class_counts = Counter(labels)
+    n_samples = len(labels)
+    n_classes = len(LABEL2ID)
+
+    # Inverse frequency: classes with fewer examples get higher weight
+    class_weights = {
+        cls: n_samples / (n_classes * count)
+        for cls, count in class_counts.items()
+    }
+
+    # Map per-example weights, each example gets its class weight
+    sample_weights = [class_weights[label] for label in labels]
+
+    print("Class distribution:")
+    for cls, count in sorted(class_counts.items()):
+        label_name = [k for k, v in LABEL2ID.items() if v == cls][0]
+        print(f"    {label_name}: {count} examples, weight={class_weights[cls]:.4f}")
+
+    return sample_weights
+
 def tokenize_split(examples: list[dict], tokenizer, max_length: int = 512) -> Dataset:
     """
     Extract texts and labels into separate lists for the tokenizer which expects a flat 

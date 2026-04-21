@@ -1,13 +1,15 @@
 import yaml
 from pathlib import Path
 import os
+import torch
+from torch.utils.data import WeightedRandomSampler
 from transformers import (
     AutoModelForSequenceClassification,
     TrainingArguments,
     Trainer
 )
 
-from src.training.dataset import load_split, build_tokenizer, tokenize_split
+from src.training.dataset import load_split, build_tokenizer, tokenize_split, compute_class_weights
 from src.training.metrics import compute_metrics
 
 
@@ -53,6 +55,37 @@ def build_training_args(config: dict) -> TrainingArguments:
         run_name="vektor-guard-v2-phase3"
     )
 
+
+class WeightedTrainer(Trainer):
+    """
+    Trainer subclass that overrides get_train_dataloader to use WeightedRandomSampler.
+    This corrects for class imbalance in the merged Phase 2 + synthetic dataset by
+    sampling minority classes more frequently during training.
+    """
+    def __init__(self, *args, sample_weights=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sample_weights = sample_weights
+
+    def get_train_dataloader(self):
+        if self.sample_weights is None:
+            return super().get_train_dataloader()
+        
+        sampler = WeightedRandomSampler(
+            weights=self.sample_weights,
+            num_samples=len(self.sample_weights),
+            replacement=True    # replacement=True allows oversampling of minority classes
+        )
+
+        return torch.utils.data.DataLoader(
+            self.train_dataset,
+            batch_size=self.args.per_device_train_batch_size,
+            sampler=sampler,
+            collate_fn=self.data_collator,
+            drop_last=self.args.dataloader_drop_last,
+            num_workers=self.args.dataloader_num_workers,
+            pin_memory=self.args.dataloader_pin_memory,
+        )
+
 def build_trainer(config_path: str = "configs/training_config.yaml") -> Trainer:
     config = load_config(config_path)
     model_name = config["model"]["name"]
@@ -67,17 +100,22 @@ def build_trainer(config_path: str = "configs/training_config.yaml") -> Trainer:
     tokenizer = build_tokenizer(model_name)
     model = load_model(model_name, num_labels, id2label, label2id)
 
+    # load raw examples before tokenization to compute class weights
+    raw_train = load_split("train")
+    sample_weights = compute_class_weights(raw_train)
+
     # load and tokenize all three splits
-    train_dataset = tokenize_split(load_split("train"), tokenizer, max_length)
+    train_dataset = tokenize_split(raw_train, tokenizer, max_length)
     val_dataset = tokenize_split(load_split("val"), tokenizer, max_length)
 
     training_args = build_training_args(config)
 
-    return Trainer(
+    return WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=val_dataset,        # val set used for mid-training evaluation
-        processing_class=tokenizer,      # v5 replacement for deprecated tokenizer= arg — enables DataCollatorWithPadding
-        compute_metrics=compute_metrics  # our custom metrics including FNR
+        eval_dataset=val_dataset,
+        processing_class=tokenizer,
+        compute_metrics=compute_metrics,
+        sample_weights=sample_weights
     )
